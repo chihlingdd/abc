@@ -1,0 +1,167 @@
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <MFRC522.h>
+#include <ESP8266WiFi.h>
+#include <FirebaseArduino.h>
+#include <ArduinoJson.h>
+#include <ESP8266HTTPClient.h>
+
+#define FIREBASE_HOST "shopping-car-560ae-default-rtdb.firebaseio.com"
+#define FIREBASE_AUTH "WJ6bXdFoSFrY99bRl4KUdlGGaVupoNetsOMyt47T"
+#define RST_PIN D3
+#define SS_PIN D4
+
+const char* ssid = "E408A1";  
+const char* password = "73427342";
+
+MFRC522 mfrc522 (SS_PIN, RST_PIN);
+LiquidCrystal_I2C lcd (0x27, 16, 2);
+
+int price = 0;
+
+byte uidw[] = {0xE7, 0x7A, 0xDB, 0x19};
+byte uidg[] = {0x10, 0xA8, 0x40, 0xAD};
+byte uidw1[] = {0x33, 0xBE, 0xC3, 0x93};
+byte uidw2[] = {0x03, 0x75, 0x57, 0x93};
+
+void setup ()
+{
+  Serial.begin (115200);
+  delay(10);
+ 
+  WiFi.begin(ssid, password);
+ 
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+  }
+
+  Firebase.begin (FIREBASE_HOST, FIREBASE_AUTH);
+
+  SPI.begin ();
+  mfrc522.PCD_Init ();
+  lcd.init ();
+  lcd.backlight ();
+
+  lcd.setCursor (0, 0);
+  lcd.print ("WELLCOME TO THE");
+  delay (1000);
+  lcd.setCursor (0, 1);
+  lcd.print ("SHOPPING CART");
+  delay (1500);
+  lcd.clear ();
+
+  lcd.setCursor(0, 0);
+  lcd.print ("PLEASE");
+  lcd.setCursor (0, 1);
+  lcd.print ("SCAN THE TAG!");
+}
+
+void loop ()
+{
+  byte *id = mfrc522.uid.uidByte;
+  byte idSize = mfrc522.uid.size;
+
+  if (mfrc522.PICC_IsNewCardPresent () && mfrc522.PICC_ReadCardSerial ())
+  {
+    MFRC522::PICC_Type piccType = mfrc522.PICC_GetType (mfrc522.uid.sak);
+
+    byte *id = mfrc522.uid.uidByte;
+    byte idSize = mfrc522.uid.size;
+
+    lcd.clear ();
+
+    for (byte i = 0; i < idSize; i++)
+    {
+
+    }
+
+    mfrc522.PICC_HaltA ();
+
+    bool matchw = true;
+    bool matchg = true;
+    bool matchw1 = true;
+    bool matchw2 = true;
+
+    for (int a = 0; a < 4; a++)
+    {
+      if (uidw[a] != mfrc522.uid.uidByte[a])
+      {
+        matchw = false;
+        break;
+      }
+    }
+    for (int b = 0; b < 4; b++)
+    {
+      if (uidg[b] != mfrc522.uid.uidByte[b])
+      {
+        matchg = false;
+        break;
+      }
+    }
+    for (int c = 0; c < 4; c++)
+    {
+      if (uidw1[c] != mfrc522.uid.uidByte[c])
+      {
+        matchw1 = false;
+        break;
+      }
+    }
+    for (int d = 0; d < 4; d++)
+    {
+      if (uidw2[d] != mfrc522.uid.uidByte[d])
+      {
+        matchw2 = false;
+        break;
+      }
+    }
+
+    if (matchw)
+    {
+      lcd.print ("TEA");
+      lcd.setCursor (0, 1);
+      lcd.print ("PRICE:NT.25");
+      price = price + 25;
+    }
+    else if (matchg)
+    {
+      lcd.print ("COFFEE");
+      lcd.setCursor (0, 1);
+      lcd.print ("PRICE:NT.55");
+      price = price + 55;
+    }
+    else if (matchw1)
+    {
+      lcd.print ("MILK");
+      lcd.setCursor (0, 1);
+      lcd.print ("PRICE:NT.99");
+      price = price + 99;
+    }
+    else if (matchw2)
+    {
+      lcd.print ("BREAD");
+      lcd.setCursor (0, 1);
+      lcd.print ("PRICE:NT.32");
+      price = price + 32;
+    }
+
+    matchw = false;
+    matchg = false;
+    matchw1 = false;
+    matchw2 = false;
+
+    delay (1500);
+    lcd.clear ();
+    lcd.print ("SCAN THE TAG");
+    lcd.setCursor (0, 1);
+    lcd.print ("TOTAL:NT.");
+    lcd.print (price);
+  }
+  if (Firebase.failed())
+  {
+    Serial.println ("Firebase log sending failed");
+    Serial.println (Firebase.error());
+    return;
+  }
+}
